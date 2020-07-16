@@ -9,4 +9,5 @@ The following datasets served as the data basis for the application:
 - Swiss public transpor stops
 - SBB rail network
 
-## 
+## User Interface
+![alt text](https://github.com/iareust/CampingPro/blob/master/Screenshot_MainPage_CampingPro.png)
