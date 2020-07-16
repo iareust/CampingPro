@@ -11,3 +11,7 @@ The following datasets served as the data basis for the application:
 
 ## User Interface
 ![alt text](https://github.com/iareust/CampingPro/blob/master/Screenshot_MainPage_CampingPro.png)
+
+
+## Database
+The used Postgres database is not included in this repository.
