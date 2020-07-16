@@ -1,0 +1,22 @@
+{% extends "app/layout.html" %}
+
+{% load leaflet_tags %}
+{% load geojson_tags %}
+
+{% block  content %}
+
+        {% leaflet_map "main" callback="window.main_map_init" creatediv=False %}
+
+        <script type="text/javascript">
+        function main_map_init(map, options) {
+
+
+            var sidebar = L.control.sidebar('sidebar', {
+                position: 'left'
+            }).addTo(map);
+
+        }
+
+         </script>
+
+{% endblock %}

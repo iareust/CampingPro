@@ -1,0 +1,965 @@
+{% extends "app/layout.html" %}
+
+{% load leaflet_tags %}
+{% load geojson_tags %}
+{% load static %}
+
+{% block  content %}
+
+    {% leaflet_map "main" callback="window.main_map_init" creatediv=False %}
+
+    <script type="text/javascript">
+        function main_map_init(map, options) {
+            // L.PM.initialize({ optIn: true });
+            map.createPane('camping_points');
+            map.createPane('user_poly');
+            ///
+            map.getPane('camping_points').style.zIndex = 650;
+            map.getPane('camping_points').style.pointerEvents = 'none';
+            //map.getPane('camping_points').style.zIndex = 500;
+            //map.getPane('user_poly').style.pointerEvents = 'none';
+
+            var layers = [];
+            map.eachLayer(function (layer) {
+                layers.push(layer);
+            });
+
+            console.log()
+
+            var station_coord;
+            var dataset_sbb_stations;
+            var dataset_route;
+            var dataset_camping;
+            var dataset_nearest_station;
+            var dataset_region_compare;
+            var dataset_ninecut = {
+                intint: null,
+                intbound: null,
+                intext: null,
+                boundint: null,
+                boundbound: null,
+                boundext: null,
+                extint: null,
+                extbound: null,
+                extext: null
+            }
+
+            /*
+                ///////////////////////
+                //  Style Functions
+                ///////////////////////
+             */
+
+
+            var trainIcon = L.icon({
+                iconUrl: '{% static 'app/images/sbb_logo.png' %}',
+                iconSize: [25, 25],
+            });
+
+            var water_trainIcon = L.icon({
+                iconUrl: '{% static 'app/images/sbb_zug.png' %}',
+                iconSize: [20, 20],
+            });
+
+            var water_boatIcon = L.icon({
+                iconUrl: '{% static 'app/images/sbb_ship.png' %}',
+                iconSize: [20, 20],
+            });
+
+            function getIcon(remark) {
+
+
+                if (remark.includes("Zug")) {
+                    return water_trainIcon;
+                } else if (remark.includes("Schiff")) {
+                    return water_boatIcon;
+                }
+            }
+
+            function getColor(d) {
+                return d > 20 ? '#f1eef6' :
+                    d > 10 ? '#bdc9e1' :
+                        d > 5 ? '#74a9cf' :
+                            d > 2 ? '#2b8cbe' :
+                                '#045a8d';
+            }
+
+            function getColor_v2(d) {
+                return d > 0.0000000150 ? '#3182bd' :
+                    d > 0.0000000050 ? '#9ecae1' :
+                        '#deebf7';
+            }
+
+            function style_regions(feature) {
+                return {
+                    fill: true,
+                    weight: 1,
+                    opacity: 0.8,
+                    fillOpacity: 0.2,
+                    pmIgnore: true,
+                    color: getColor_v2(feature.properties.num_camping),
+                };
+            }
+
+            function style_regions_grey(feature) {
+                return {
+                    fill: true,
+                    weight: 1,
+                    opacity: 1,
+                    pmIgnore: true,
+                    fillOpacity: 0.1,
+                    color: 'grey',
+                };
+            }
+
+            function style_regions_grey_mouseover(feature) {
+                return {
+                    fill: true,
+                    weight: 3,
+                    opacity: 1,
+                    pmIgnore: true,
+                    color: '#537898',
+                };
+            }
+
+            function style_regions_grey_click(feature) {
+                return {
+                    fill: true,
+                    weight: 3,
+                    opacity: 1,
+                    pmIgnore: true,
+                    color: '#537898',
+                };
+            }
+
+            function style_lakes(feature) {
+                if (feature.properties.num_bordering_regions > 4) {
+                    border_color = '#f476a3'
+                } else {
+                    border_color = '#537898'
+                }
+                return {
+                    fillColor: '#0063ef',
+                    color: border_color,
+                    weight: 2.5,
+                    pmIgnore: true,
+                    fillOpacity: 0.5
+                };
+            }
+
+            var style_rivers = {
+                color: '#0063ef',
+                pmIgnore: true,
+                weight: 1,
+            }
+
+
+            var style_camping_base = {
+                fillColor: '#2c97fc',
+                color: '#61b4ff',
+                weight: 1.5,
+                pmIgnore: true,
+                fillOpacity: 0.6,
+                radius: 6,
+                pane: 'camping_points',
+                //interactive: false
+            }
+
+            var style_camping_mouseover = {
+                color: 'yellow',
+                pmIgnore: true,
+            }
+
+            var style_station_base = {
+                fillColor: 'red',
+                color: '#537898',
+                weight: 1,
+                pmIgnore: true,
+                fillOpacity: 0.5,
+                pane: 'camping_points'
+            }
+
+            var style_station_mouseover = {
+                color: 'yellow',
+                pmIgnore: true,
+            }
+
+            var style_user_poly_line = {
+                fill: false,
+                color: '#649cce',
+                weight: 4,
+                pane: 'user_poly'
+            }
+
+            var style_user_poly_fill_inactive = {
+                fill: true,
+                interactive: false,
+                color: '#649cce',
+                weight: 4,
+                pmIgnore: true
+                // pane: 'user_poly'
+            }
+
+            var style_user_poly_fill_active = {
+                fill: true,
+                interactive: true,
+                color: '#649cce',
+                weight: 4,
+                // pane: 'user_poly'
+            }
+
+            var style_ninecut_active_int = {
+                fill: true,
+                interactive: false,
+                pmIgnore: true,
+                color: 'yellow',
+                fillOpacity: 0.6,
+                weight: 0,
+            }
+
+            var style_ninecut_active_bound = {
+                fill: false,
+                interactive: false,
+                pmIgnore: true,
+                color: 'yellow',
+                weight: 4,
+            }
+
+            var style_ninecut_active_ext = {
+                fill: true,
+                interactive: false,
+                pmIgnore: true,
+                color: 'yellow',
+                fillOpacity: 0.6,
+                weight: 4,
+            }
+
+
+            function camping_PointToLayer(feature, latlng) {
+                return L.circleMarker(latlng, style_camping_base).on({
+                    mouseover: function (e) {
+                        this.setStyle(style_camping_mouseover)
+                    },
+
+                    mouseout: function (e) {
+                        this.setStyle(style_camping_base)
+                    }
+                })
+            }
+
+
+            function camping_onEachFeature(feature, layer) {
+                var popupText = "<p>" + feature.properties.name + "</p>";
+                layer.bindPopup(popupText, {offset: new L.Point(0, -10)});
+            }
+
+            function camping_mouseout(e) {
+                if (dataset_route != undefined) {
+                    map.removeLayer(dataset_route)
+                }
+            }
+
+            function station_IconToLayer(feature, latlng) {
+
+                return L.marker(latlng, {
+                    icon: trainIcon
+                })
+            }
+
+
+            function water_station_IconToLayer(feature, latlng) {
+
+                return L.marker(latlng, {
+                    icon: getIcon(feature.properties.type)
+                })
+            }
+
+
+            function station_OnEachFeature(feature, layer) {
+                var popupText = feature.properties.remark;
+                layer.bindPopup(popupText, {offset: new L.Point(0, -10)});
+                station_coord = feature.geometry.coordinates
+            }
+
+
+            /*
+
+                ////////////////////
+                //  Ajax Calls
+                ////////////////////
+
+             */
+
+            function camping_mouseover(e) {
+
+                if (dataset_nearest_station != undefined) {
+                    console.log(e.latlng)
+                    $.ajax({
+                        url: "{% url 'routing' %}",
+                        data: {
+                            'p1_lat': e.latlng.lat,
+                            'p1_lng': e.latlng.lng,
+                            'p2_lat': station_coord[1],
+                            'p2_lng': station_coord[0],
+                        },
+                        dataType: 'json',
+                        success: function (data) {
+
+                            if (dataset_route != undefined) {
+                                map.removeLayer(dataset_route);
+                            }
+
+                            dataset_route = new L.GeoJSON(data, {style: style_ninecut_active_bound});
+                            map.addLayer(dataset_route)
+                        }
+                    })
+                }
+            }
+
+            function camping_onChange() {
+
+                $.ajax({
+                    url: "{% url 'camping2' %}",
+                    data: {
+                        'distance_from_water': slider_distance_water.value,
+                        'distance_from_station': slider_distance_station.value,
+                    },
+                    dataType: 'json',
+                    success: function (data) {
+
+                        if (dataset_camping != undefined) {
+                            map.removeLayer(dataset_camping);
+                        }
+
+                        dataset_camping = new L.GeoJSON(data, {
+                            pointToLayer: camping_PointToLayer,
+                            onEachFeature: camping_onEachFeature
+                        }).addTo(map).on('mouseover', camping_mouseover).on('mouseout', camping_mouseout);
+                    }
+                });
+            }
+
+            function station_onChange(e) {
+                var pos = (map.mouseEventToLatLng(e.originalEvent));
+                $.ajax({
+                    url: "{% url 'nearest_sbb' %}",
+                    data: {
+                        'mouse_position_lat': pos.lat,
+                        'mouse_position_lng': pos.lng,
+                    },
+                    dataType: 'json',
+                    success: function (data) {
+
+                        if (dataset_nearest_station != undefined) {
+                            map.removeLayer(dataset_nearest_station);
+                        }
+
+                        dataset_nearest_station = new L.GeoJSON(data, {
+                            pointToLayer: station_IconToLayer,
+                            onEachFeature: station_OnEachFeature
+                        }).addTo(map);
+                    }
+                });
+            }
+
+
+            function region_onChange(e) {
+
+                document.getElementById('select-region-done').innerHTML = "<h5>&#x2705;</h5>";
+
+                if (dataset_region_compare != undefined) {
+                    map.removeLayer(dataset_region_compare);
+                    dataset_region_compare = undefined
+                }
+
+                var pos = (map.mouseEventToLatLng(e.originalEvent));
+                $.ajax({
+                    url: "{% url 'ninecut' %}",
+                    data: {
+                        'mouse_position_lat': pos.lat,
+                        'mouse_position_lng': pos.lng,
+                    },
+                    dataType: 'json',
+                    success: function (data) {
+                        dataset_region_compare = new L.GeoJSON(data, {style: style_user_poly_fill_inactive});
+                        map.addLayer(dataset_region_compare)
+                        ajaxGetNinecurMatrix()
+                    }
+                })
+
+            }
+
+            function sbb_onChange() {
+
+                $.ajax({
+                    url: "{% url 'sbb_water' %}",
+                    data: {
+                        'distance_from_water': slider_distance_sbb.value,
+                    },
+                    dataType: 'json',
+                    success: function (data) {
+
+                        if (dataset_sbb_stations != undefined) {
+                            map.removeLayer(dataset_sbb_stations);
+                        }
+
+                        dataset_sbb_stations = new L.GeoJSON(data, {
+                            pointToLayer: water_station_IconToLayer,
+                            onEachFeature: station_OnEachFeature
+                        }).addTo(map)
+
+                    }
+                });
+            }
+
+
+            function ajaxGetNinecurMatrix() {
+
+                if (dataset_region_compare != undefined) {
+
+                    var polyA = JSON.stringify(dataset_region_compare.toGeoJSON().features[0].geometry)
+                    var polyB = JSON.stringify(user_polygon.toGeoJSON().features[0].geometry)
+
+                    $.ajax({
+                        url: "{% url 'ninecut_matrix' %}",
+                        data: {
+                            'polyA': polyA,
+                            'polyB': polyB
+                        },
+                        dataType: 'json',
+                        success: function (data) {
+                            document.getElementById('9cut-mat').style.display = "initial";
+                            document.getElementById('9cut-title').style.display = "initial";
+
+                            document.getElementById('int-int').innerHTML = data.int_int;
+                            document.getElementById('int-bound').innerHTML = data.int_bound;
+                            document.getElementById('int-ext').innerHTML = data.int_ext;
+                            document.getElementById('bound-int').innerHTML = data.bound_int;
+                            document.getElementById('bound-bound').innerHTML = data.bound_bound;
+                            document.getElementById('bound-ext').innerHTML = data.bound_ext;
+                            document.getElementById('ext-int').innerHTML = data.ext_int;
+                            document.getElementById('ext-bound').innerHTML = data.ext_bound;
+                            document.getElementById('ext-ext').innerHTML = data.ext_ext;
+                        }
+                    })
+
+
+                }
+
+            }
+
+            function ajaxGetNinecutPoly(url, execute) {
+                var polyA = JSON.stringify(dataset_region_compare.toGeoJSON().features[0].geometry)
+                var polyB = JSON.stringify(user_polygon.toGeoJSON().features[0].geometry)
+
+                $.ajax({
+                    url: url,
+                    data: {
+                        'polyA': polyA,
+                        'polyB': polyB
+                    },
+                    dataType: 'json',
+                    success: function (data) {
+                        execute(data);
+                    }
+                });
+            }
+
+            /*
+
+                ////////////////////
+                //  Mouseovers
+                ////////////////////
+
+             */
+
+            function ninecutIntIntMouseOver() {
+                var url = "{% url 'ninecut_intint' %}"
+                if (dataset_ninecut.intint != null) {
+                    map.removeLayer(dataset_ninecut.intint);
+                    dataset_ninecut.intint = null
+                }
+
+                ajaxGetNinecutPoly(url, function (e) {
+                    dataset_ninecut.intint = new L.GeoJSON(e, {style: style_ninecut_active_int});
+                    map.addLayer(dataset_ninecut.intint);
+                });
+
+            }
+
+            function ninecutIntIntMouseOut() {
+                setTimeout(function () {
+                    if (dataset_ninecut.intint != null) {
+                        map.removeLayer(dataset_ninecut.intint);
+                        dataset_ninecut.intint = null
+                    }
+                }, 200)
+            }
+
+            function ninecutIntBoundMouseOver() {
+                var url = "{% url 'ninecut_intbound' %}"
+                if (dataset_ninecut.intbound != null) {
+                    map.removeLayer(dataset_ninecut.intbound);
+                    dataset_ninecut.intbound = null
+                }
+
+                ajaxGetNinecutPoly(url, function (e) {
+                    dataset_ninecut.intbound = new L.GeoJSON(e, {style: style_ninecut_active_bound});
+                    map.addLayer(dataset_ninecut.intbound);
+                });
+
+            }
+
+            function ninecutIntBoundMouseOut() {
+                setTimeout(function () {
+                    if (dataset_ninecut.intbound != null) {
+                        map.removeLayer(dataset_ninecut.intbound);
+                        dataset_ninecut.intbound = null
+                    }
+                }, 200)
+            }
+
+            function ninecutIntExtMouseOver() {
+                var url = "{% url 'ninecut_intext' %}"
+                if (dataset_ninecut.intext != null) {
+                    map.removeLayer(dataset_ninecut.intext);
+                    dataset_ninecut.intext = null
+                }
+
+                ajaxGetNinecutPoly(url, function (e) {
+                    dataset_ninecut.intext = new L.GeoJSON(e, {style: style_ninecut_active_ext});
+                    map.addLayer(dataset_ninecut.intext);
+                });
+
+            }
+
+            function ninecutIntExtMouseOut() {
+                setTimeout(function () {
+                    if (dataset_ninecut.intext != null) {
+                        map.removeLayer(dataset_ninecut.intext);
+                        dataset_ninecut.intext = null
+                    }
+                }, 200)
+            }
+
+            function ninecutBoundIntMouseOver() {
+                var url = "{% url 'ninecut_boundint' %}"
+                if (dataset_ninecut.boundint != null) {
+                    map.removeLayer(dataset_ninecut.boundint);
+                    dataset_ninecut.boundint = null
+                }
+
+                ajaxGetNinecutPoly(url, function (e) {
+                    dataset_ninecut.boundint = new L.GeoJSON(e, {style: style_ninecut_active_bound});
+                    map.addLayer(dataset_ninecut.boundint);
+                });
+
+            }
+
+            function ninecutBoundIntMouseOut() {
+                setTimeout(function () {
+                    if (dataset_ninecut.boundint != null) {
+                        map.removeLayer(dataset_ninecut.boundint);
+                        dataset_ninecut.boundint = null
+                    }
+                }, 200)
+            }
+
+            function ninecutBoundBoundMouseOver() {
+                var url = "{% url 'ninecut_boundbound' %}"
+                if (dataset_ninecut.boundbound != null) {
+                    map.removeLayer(dataset_ninecut.boundbound);
+                    dataset_ninecut.boundbound = null
+                }
+
+                ajaxGetNinecutPoly(url, function (e) {
+                    dataset_ninecut.boundbound = new L.GeoJSON(e, {style: style_ninecut_active_bound});
+                    map.addLayer(dataset_ninecut.boundbound);
+                });
+
+            }
+
+            function ninecutBoundBoundMouseOut() {
+                setTimeout(function () {
+                    if (dataset_ninecut.boundbound != null) {
+                        map.removeLayer(dataset_ninecut.boundbound);
+                        dataset_ninecut.boundbound = null
+                    }
+                }, 200)
+            }
+
+            function ninecutBoundExtMouseOver() {
+                var url = "{% url 'ninecut_boundext' %}"
+                if (dataset_ninecut.boundext != null) {
+                    map.removeLayer(dataset_ninecut.boundext);
+                    dataset_ninecut.boundext = null
+                }
+
+                ajaxGetNinecutPoly(url, function (e) {
+                    dataset_ninecut.boundext = new L.GeoJSON(e, {style: style_ninecut_active_bound});
+                    map.addLayer(dataset_ninecut.boundext);
+                });
+
+            }
+
+            function ninecutBoundExtMouseOut() {
+                setTimeout(function () {
+                    if (dataset_ninecut.boundext != null) {
+                        map.removeLayer(dataset_ninecut.boundext);
+                        dataset_ninecut.boundext = null
+                    }
+                }, 200)
+            }
+
+            function ninecutExtIntMouseOver() {
+                var url = "{% url 'ninecut_extint' %}"
+                if (dataset_ninecut.extint != null) {
+                    map.removeLayer(dataset_ninecut.extint);
+                    dataset_ninecut.extint = null
+                }
+
+                ajaxGetNinecutPoly(url, function (e) {
+                    dataset_ninecut.extint = new L.GeoJSON(e, {style: style_ninecut_active_int});
+                    map.addLayer(dataset_ninecut.extint);
+                });
+
+            }
+
+            function ninecutExtIntMouseOut() {
+                setTimeout(function () {
+                    if (dataset_ninecut.extint != null) {
+                        map.removeLayer(dataset_ninecut.extint);
+                        dataset_ninecut.extint = null
+                    }
+                }, 200)
+            }
+
+            function ninecutExtBoundMouseOver() {
+                var url = "{% url 'ninecut_extbound' %}"
+                if (dataset_ninecut.extbound != null) {
+                    map.removeLayer(dataset_ninecut.extbound);
+                    dataset_ninecut.extbound = null
+                }
+
+                ajaxGetNinecutPoly(url, function (e) {
+                    dataset_ninecut.extbound = new L.GeoJSON(e, {style: style_ninecut_active_bound});
+                    map.addLayer(dataset_ninecut.extbound);
+                });
+
+            }
+
+            function ninecutExtBoundMouseOut() {
+                setTimeout(function () {
+                    if (dataset_ninecut.extbound != null) {
+                        map.removeLayer(dataset_ninecut.extbound);
+                        dataset_ninecut.extbound = null
+                    }
+                }, 200)
+            }
+
+            function ninecutExtExtMouseOver() {
+                var url = "{% url 'ninecut_extext' %}"
+                if (dataset_ninecut.extext != null) {
+                    map.removeLayer(dataset_ninecut.extext);
+                    dataset_ninecut.extext = null
+                }
+
+                ajaxGetNinecutPoly(url, function (e) {
+                    dataset_ninecut.extext = new L.GeoJSON(e, {style: style_ninecut_active_int});
+                    map.addLayer(dataset_ninecut.extext);
+                });
+
+            }
+
+            function ninecutExtExtMouseOut() {
+                setTimeout(function () {
+                    if (dataset_ninecut.extext != null) {
+                        map.removeLayer(dataset_ninecut.extext);
+                        dataset_ninecut.extext = null
+                    }
+                }, 200)
+            }
+
+            document.getElementById('int-int').addEventListener('mouseover', ninecutIntIntMouseOver);
+            document.getElementById('int-int').addEventListener('mouseout', ninecutIntIntMouseOut);
+            document.getElementById('int-bound').addEventListener('mouseover', ninecutIntBoundMouseOver);
+            document.getElementById('int-bound').addEventListener('mouseout', ninecutIntBoundMouseOut);
+            document.getElementById('int-ext').addEventListener('mouseover', ninecutIntExtMouseOver);
+            document.getElementById('int-ext').addEventListener('mouseout', ninecutIntExtMouseOut);
+            document.getElementById('bound-int').addEventListener('mouseover', ninecutBoundIntMouseOver);
+            document.getElementById('bound-int').addEventListener('mouseout', ninecutBoundIntMouseOut);
+            document.getElementById('bound-bound').addEventListener('mouseover', ninecutBoundBoundMouseOver);
+            document.getElementById('bound-bound').addEventListener('mouseout', ninecutBoundBoundMouseOut);
+            document.getElementById('bound-ext').addEventListener('mouseover', ninecutBoundExtMouseOver);
+            document.getElementById('bound-ext').addEventListener('mouseout', ninecutBoundExtMouseOut);
+            document.getElementById('ext-int').addEventListener('mouseover', ninecutExtIntMouseOver);
+            document.getElementById('ext-int').addEventListener('mouseout', ninecutExtIntMouseOut);
+            document.getElementById('ext-bound').addEventListener('mouseover', ninecutExtBoundMouseOver);
+            document.getElementById('ext-bound').addEventListener('mouseout', ninecutExtBoundMouseOut);
+            document.getElementById('ext-ext').addEventListener('mouseover', ninecutExtExtMouseOver);
+            document.getElementById('ext-ext').addEventListener('mouseout', ninecutExtExtMouseOut);
+
+
+            var dataset_borders = new L.GeoJSON.AJAX("{% url 'border' %}", {
+                style: style_regions,
+                pmIgnore: true
+            }).addTo(map);
+            var dataset_lakes = new L.GeoJSON.AJAX("{% url 'lakes' %}", {style: style_lakes}).addTo(map);
+            var dataset_river = new L.GeoJSON.AJAX("{% url 'river' %}", style_rivers).addTo(map);
+
+            var sidebar = L.control.sidebar('sidebar', {
+                position: 'left'
+            });
+
+            map.addControl(sidebar);
+
+            var slider_distance_water = document.getElementById("distance_from_water");
+            var slider_distance_station = document.getElementById("distance_from_station");
+            var checkbox_lake = document.getElementById("checkbox-lakes");
+            var checkbox_border = document.getElementById("checkbox-borders");
+
+            checkbox_lake.onchange = function () {
+                if (checkbox_lake.checked == true) {
+                    map.addLayer(dataset_lakes);
+                    map.addLayer(dataset_river);
+                } else {
+                    map.removeLayer(dataset_lakes);
+                    map.removeLayer(dataset_river);
+                }
+            };
+
+            checkbox_border.onchange = function () {
+                if (checkbox_border.checked == true) {
+                    map.addLayer(dataset_borders);
+
+                } else {
+                    map.removeLayer(dataset_borders);
+                }
+            };
+
+            // Configure Slider
+
+            slider_distance_water.onchange = camping_onChange
+            slider_distance_water.oninput = function () {
+                var slider = document.getElementById("distance_from_water");
+                document.getElementById("distance_from_water_value").innerHTML = slider.value + " km"
+            };
+
+            slider_distance_station.onchange = camping_onChange
+            slider_distance_station.oninput = function () {
+                var slider = document.getElementById("distance_from_station");
+                document.getElementById("distance_from_station_value").innerHTML = slider.value + " m"
+            };
+
+            slider_distance_station.oninput();
+            slider_distance_station.onchange();
+
+
+            var slider_distance_sbb = document.getElementById("sbb_distance_from_water");
+
+
+            slider_distance_sbb.onchange = sbb_onChange
+            slider_distance_sbb.oninput = function () {
+                var slider = document.getElementById("sbb_distance_from_water");
+                document.getElementById("sbb_distance_from_water_value").innerHTML = slider.value + " km"
+            };
+
+            map.on('click', station_onChange);
+
+            var user_polygon = new L.FeatureGroup();
+            var user_polygon_style = style_regions_grey();
+
+
+            function highlightRegion(e) {
+                var layer = e.target;
+                layer.setStyle(
+                    style_regions_grey_mouseover()
+                );
+            }
+
+            function resetHighlightRegion(e) {
+                var layer = e.target;
+                layer.setStyle(
+                    user_polygon_style
+                );
+            }
+
+            function hideHomeContent() {
+                map.off('click', station_onChange);
+
+                map.removeLayer(dataset_route);
+                map.removeLayer(dataset_lakes);
+                map.removeLayer(dataset_river);
+                map.removeLayer(dataset_camping);
+
+                if (dataset_nearest_station != undefined) {
+                    map.removeLayer(dataset_nearest_station);
+                }
+            }
+
+            function switchToProfilTab() {
+
+                hideHomeContent();
+                hideSBBTab();
+
+                if (dataset_region_compare != undefined) {
+                    map.addLayer(dataset_region_compare);
+                    map.on('click', region_onChange);
+                } else {
+                    document.getElementById('9cut-mat').style.display = "none";
+                    document.getElementById('9cut-title').style.display = "none";
+                }
+
+
+                map.pm.addControls({
+                    position: 'topleft',
+                    drawMarker: false,
+                    drawCircleMarker: false,
+                    drawPolyline: false,
+                    drawCircle: false,
+                    cutPolygon: false,
+                    editMode: false,
+                });
+
+                map.on('pm:create', e => {
+                    document.getElementById('select-poly-done').innerHTML = "<h5>&#x2705;</h5>";
+                    user_polygon.addLayer(e.layer)
+                    user_polygon.setStyle(style_user_poly_fill_active);
+                    map.pm.addControls({
+                        drawPolygon: false,
+                        drawCircle: false,
+                        drawRectangle: false,
+                    })
+
+                    map.on('click', region_onChange);
+                });
+
+                map.on('pm:remove', e => {
+                    document.getElementById('select-poly-done').innerHTML = "<h5>&#x274C;</h5>";
+                    document.getElementById('select-region-done').innerHTML = "<h5>&#x274C;</h5>";
+
+                    document.getElementById('9cut-mat').style.display = "none";
+                    document.getElementById('9cut-title').style.display = "none";
+
+                    user_polygon.clearLayers();
+                    map.pm.addControls({
+                        drawPolygon: true,
+                        drawCircle: true,
+                        drawRectangle: true,
+                    });
+
+                    map.off('click', region_onChange);
+                    if (dataset_region_compare != undefined) {
+                        map.removeLayer(dataset_region_compare);
+                        dataset_region_compare = undefined;
+                    }
+                });
+
+                if (user_polygon != undefined) {
+                    map.addLayer(user_polygon);
+                }
+
+                dataset_borders.eachLayer(function (featureInstancelayer) {
+                    featureInstancelayer.setStyle(
+                        style_regions_grey()
+                    );
+
+                    featureInstancelayer.on({
+                        mouseover: highlightRegion,
+                        mouseout: resetHighlightRegion,
+                        click: highlightRegion
+                    });
+                });
+            }
+
+            function hideProfilContent() {
+                map.off('click', region_onChange);
+                map.pm.removeControls();
+
+                if (user_polygon != undefined) {
+                    map.removeLayer(user_polygon);
+                }
+
+                if (dataset_region_compare != undefined) {
+                    map.removeLayer(dataset_region_compare);
+                }
+
+                dataset_borders.eachLayer(function (featureInstancelayer) {
+                    featureInstancelayer.setStyle(
+                        style_regions(featureInstancelayer.feature)
+                    );
+
+                    featureInstancelayer.off({
+                        mouseover: highlightRegion,
+                        mouseout: resetHighlightRegion,
+                        click: highlightRegion,
+                    });
+
+                });
+
+            }
+
+            function hideSBBTab() {
+
+                dataset_borders.eachLayer(function (featureInstancelayer) {
+                    featureInstancelayer.setStyle(
+                        style_regions(featureInstancelayer.feature)
+                    );
+                });
+
+                if (dataset_sbb_stations != undefined) {
+                    map.removeLayer(dataset_sbb_stations)
+                }
+
+                map.removeLayer(dataset_lakes);
+                map.removeLayer(dataset_river);
+
+            }
+
+
+            function switchToSBBTab() {
+                hideProfilContent();
+                hideHomeContent();
+
+                slider_distance_sbb.onchange();
+
+                dataset_borders.eachLayer(function (featureInstancelayer) {
+                    featureInstancelayer.setStyle(
+                        style_regions_grey()
+                    );
+                });
+
+                map.addLayer(dataset_lakes);
+                map.addLayer(dataset_river);
+                map.addLayer(dataset_sbb_stations);
+
+
+            }
+
+            function switchToHomeTab() {
+
+                hideProfilContent();
+                hideSBBTab();
+
+                map.on('click', station_onChange);
+                map.addLayer(dataset_lakes);
+                map.addLayer(dataset_river);
+                map.addLayer(dataset_camping);
+                map.addLayer(dataset_route);
+
+
+                if (dataset_nearest_station != undefined) {
+                    map.addLayer(dataset_nearest_station);
+                }
+
+            }
+
+
+            document.getElementById("tab-profile").addEventListener("click", switchToProfilTab);
+            document.getElementById("tab-home").addEventListener("click", switchToHomeTab);
+            document.getElementById("tab-sbb").addEventListener("click", switchToSBBTab);
+        }
+
+    </script>
+
+{% endblock %}

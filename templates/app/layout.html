@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+
+{% load leaflet_tags %}
+{% load geojson_tags %}
+
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+
+
+    <title>{{ title }}</title>
+
+    {% load static %}
+
+    <!-- Font Awsome -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.css">
+
+
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="{% static 'app/mdb/css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'app/mdb/css/mdb.min.css' %}">
+    <link rel="stylesheet" href="{% static 'app/mdb/css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'app/content/css/L.Control.Sidebar.css' %}">
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.1/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.css"/>
+
+    <link rel="stylesheet" href="{% static 'app/mdb/css/leaflet-sidebar.css' %}">
+
+    {% leaflet_css %}
+    <!-- <link href="https://fonts.foofleapis.com/css?family=Open+Sans:400,600,700,800" rel="stylesheet" type="text/css"> -->
+
+
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+        }
+
+        html, body, #main {
+            height: 100%;
+            font: 10pt "Helvetica Neue", Arial, Helvetica, sans-serif;
+        }
+
+        .ninecut-elem {
+            text-align: center;
+            position: relative;
+            background: gray;
+            color: white;
+            font-size: large;
+            padding: 50px 0;
+        }
+
+        .ninecut-elem:hover {
+            background: #0092ff;
+            color: white;
+        }
+
+        .ninecut-row {
+            padding-left: 20px;
+            padding-right: 20px;
+        }
+
+        .slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 25px;
+            background: #d3d3d3;
+            outline: none;
+            opacity: 0.7;
+            -webkit-transition: .2s;
+            transition: opacity .2s;
+        }
+
+        .slider:hover {
+            opacity: 1;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            background: #2081d7;
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            background: #2081d7;
+            cursor: pointer;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider-checkbox {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+
+        .slider-checkbox:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+        }
+
+        input:checked + .slider-checkbox {
+            background-color: #2196F3;
+        }
+
+        input:focus + .slider-checkbox {
+            box-shadow: 0 0 1px #2196F3;
+        }
+
+        input:checked + .slider-checkbox:before {
+            -webkit-transform: translateX(26px);
+            -ms-transform: translateX(26px);
+            transform: translateX(26px);
+        }
+
+
+        .slider-box-slider {
+            float: left;
+            width: 75%;
+        }
+
+        .slider-box-value {
+            float: left;
+            padding: 2%;
+            width: 20%;
+        }
+
+        .lever-box {
+            float: left;
+            width: 50%;
+        }
+
+        .lever-box-lever {
+            width: 100%;
+        }
+
+        .lever-box-text {
+            width: 100%;
+        }
+
+    </style>
+
+</head>
+<body>
+
+<body>
+<div id="sidebar" class="sidebar collapsed">
+    <!-- Nav tabs -->
+    <div class="sidebar-tabs">
+        <ul role="tablist">
+            <li id="tab-home"><a href="#home" role="tab"><i class="fa fa-bars"></i></a></li>
+            <li id="tab-sbb"><a href="#sbb" role="tab"><i class="fa fa-train"></i></a></li>
+            <li id="tab-profile"><a href="#profile" role="tab"><i class="fa fa-th"></i></a></li>
+
+        </ul>
+
+        <ul role="tablist">
+            <li><a href="#settings" role="tab"><i class="fa fa-gear"></i></a></li>
+        </ul>
+    </div>
+
+    <!-- Tab panes -->
+    <div class="sidebar-content">
+        <div class="sidebar-pane" id="home">
+            <h1 class="sidebar-header">
+                CampingPro
+                <span class="sidebar-close"><i class="fa fa-caret-left"></i></span>
+            </h1>
+            <br>
+            <h2> Filter Camping Places</h2>
+            <br><br>
+            <h5>Distance from Water</h5>
+            <div class="slider-box-slider">
+                <input type="range" min="0.0" max="100.0" value="50" step="1" class="slider" id="distance_from_water">
+            </div>
+            <div class="slider-box-value" id="distance_from_water_value">50 km</div>
+
+            <div style="padding: 30px"></div>
+            <h5>Distance from Station</h5>
+            <div class="slider-box-slider">
+                <input type="range" min="0" max="10000" value="2500" step="100" class="slider"
+                       id="distance_from_station">
+            </div>
+            <div class="slider-box-value" id="distance_from_station_value">100</div>
+            <div style="padding: 30px"></div>
+
+            <div class="lever-box">
+                <div class="lever-box-text">
+                    Show Water
+                </div>
+                <br>
+                <div class="lever-box-lever">
+                    <label class="switch">
+                        <input type="checkbox" id="checkbox-lakes" checked>
+                        <span class="slider-checkbox"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="lever-box">
+                <div class="lever-box-text">
+                    Show Borders
+                </div>
+                <br>
+                <div class="lever-box-lever">
+                    <label class="switch">
+                        <input type="checkbox" id="checkbox-borders" checked>
+                        <span class="slider-checkbox"></span>
+                    </label>
+                </div>
+            </div>
+
+            <br><br><br><br>
+            <div class="mt-5 pt-5">
+
+                <h5>Legend</h5>
+
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th scope="col">Color</th>
+                        <th scope="col">Camping Places per km²</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <th scope="row" style="background-color: #3182bd"><b></b></th>
+                        <td> > 0.0000000150</td>
+                    </tr>
+                    <tr>
+                        <th scope="row" style="background-color: #9ecae1"><b></b></th>
+                        <td> > 0.0000000050</td>
+                    </tr>
+                    <tr>
+                        <th scope="row" style="background-color: #deebf7"><b></b></th>
+                        <td> > 0.0</td>
+                    </tr>
+                    </tbody>
+                </table>
+
+            </div>
+
+            <div class="mt-5 pt-5">
+
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th scope="col">Border Color</th>
+                        <th scope="col">Number of Administrative Units on Border</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <th scope="row" class="border" style="background-color: #f476a3"></th>
+                        <td> > 4</td>
+                    </tr>
+                    <tr>
+                        <th scope="row" class="border" style="background-color: #537898"></th>
+                        <td> > 0</td>
+                    </tr>
+                    </tbody>
+                </table>
+
+            </div>
+
+
+        </div>
+
+        <div class="sidebar-pane" id="sbb">
+            <br>
+            <h2> Filter SBB Stations</h2>
+            <br><br>
+            <h5>Distance from Water</h5>
+            <div class="slider-box-slider">
+                <input type="range" min="0.0" max="50.0" value="1" step="1" class="slider" id="sbb_distance_from_water">
+            </div>
+            <div class="slider-box-value" id="sbb_distance_from_water_value">1 km</div>
+
+        </div>
+
+        <div class="sidebar-pane" id="profile">
+            <h1 class="sidebar-header">9 Intersection Model<span class="sidebar-close"><i class="fa fa-caret-left"></i></span>
+            </h1>
+            <br>
+            <br>
+            <div class="container">
+                <div class="row">
+                    <div class="col-1">
+                        <h4>1.</h4>
+                    </div>
+                    <div class="col-8">
+                        <h4>Draw a Polygon on the Map</h4>
+                    </div>
+                    <div class="col-1" id="select-poly-done">
+                        <h5>&#x274C;</h5>
+                    </div>
+                </div>
+            </div>
+            <br>
+            <div class="container">
+                <div class="row">
+                    <div class="col-1">
+                        <h4>2.</h4>
+                    </div>
+                    <div class="col-8">
+                        <h4>Select Region on Map</h4>
+                    </div>
+                    <div class="col-1" id="select-region-done">
+                        <h5>&#x274C;</h5>
+                    </div>
+                </div>
+            </div>
+            <br>
+            <br>
+            <h2 id="9cut-title">Nine Intersection Model</h2>
+            <br>
+            <div class="container" id="9cut-mat">
+                <div class="row ninecut-row">
+                    <div class="col-sm ninecut-elem border" id="int-int">
+                        -
+                    </div>
+                    <div class="col-sm ninecut-elem border" id="int-bound">
+                        -
+                    </div>
+                    <div class="col-sm ninecut-elem border" id="int-ext">
+                        -
+                    </div>
+                </div>
+
+                <div class="row ninecut-row">
+                    <div class="col-sm ninecut-elem border" id="bound-int">
+                        -
+                    </div>
+                    <div class="col-sm ninecut-elem border" id="bound-bound">
+                        -
+                    </div>
+                    <div class="col-sm ninecut-elem border" id="bound-ext">
+                        -
+                    </div>
+                </div>
+
+                <div class="row ninecut-row">
+                    <div class="col-sm ninecut-elem border" id="ext-int">
+                        -
+                    </div>
+                    <div class="col-sm ninecut-elem border" id="ext-bound">
+                        -
+                    </div>
+                    <div class="col-sm ninecut-elem border" id="ext-ext">
+                        -
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+
+    </div>
+</div>
+
+<!-- Sidebar End -->
+
+<div id="main" class="sidebar-map">
+    {% block content %}{% endblock %}
+</div>
+
+
+<div id="sidebar-right">
+
+    <div id="sidebar-heading" style="margin:5px;">
+        <h4 style="display: inline;"><b style="color: dodgerblue;">Lake</b> Used </h4>
+    </div>
+
+</div>
+
+
+<script src="{% static 'app/mdb/js/jquery-3.2.1.min.js' %}"></script>
+<script src="{% static 'app/mdb/js/popper.min.js' %}"></script>
+<script src="{% static 'app/mdb/js/bootstrap.min.js' %}"></script>
+<script src="{% static 'app/mdb/js/mdb.min.js' %}"></script>
+
+
+<script>
+
+</script>
+
+{% leaflet_js %}
+
+<script src="{% static 'app/scripts/js/Chart.js' %}"></script>
+<script src="{% static 'app/scripts/js/leaflet.ajax.min.js' %}"></script>
+
+<script src="{% static 'app/scripts/js/leaflet-sidebar.js' %}"></script>
+<script src="{% static 'app/scripts/js/leaflet-button.js' %}"></script>
+
+<script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.min.js"></script>
+
+</body>
+</html>
