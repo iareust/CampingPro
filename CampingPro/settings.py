@@ -82,10 +82,10 @@ WSGI_APPLICATION = 'CampingPro.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'gis_app',
+        'NAME': 'postgres',
         'USER': 'postgres',
-        'PASSWORD': 'admin123',
-        'HOST': '172.17.0.3',
+        'PASSWORD': 'S7xxTV90',
+        'HOST': '40.68.130.103',
     }
 }
 
