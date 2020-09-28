@@ -16,16 +16,16 @@ Including another URLconf
 
 from django.conf.urls import url
 
-import campingpro.views
-from campingpro import *
-from campingpro.views import get_nearest_sbb_station, seen_dataset, camping_dataset, sbb_dataset, \
+import camping_map.views
+from camping_map import *
+from camping_map.views import get_nearest_sbb_station, seen_dataset, camping_dataset, sbb_dataset, \
     river_dataset, camping_dataset2, borders_dataset, get_region_ninecut, get_ninecut_matrix, \
     get_ninecut_intint, get_ninecut_intbound, get_ninecut_intext, get_ninecut_boundint, get_ninecut_boundbound, \
     get_ninecut_boundext, get_ninecut_extint, get_ninecut_extbound, get_ninecut_extext, sbb_water_dataset, routing
 
 urlpatterns = [
     # path('admin/', admin.site.urls),
-    url(r'^$', campingpro.views.home, name='home'),
+    url(r'^$', camping_map.views.home, name='home'),
     url(r'^ajax/ninecut/$', get_region_ninecut, name='ninecut'),
     url(r'^ajax/ninecut_matrix/$', get_ninecut_matrix, name='ninecut_matrix'),
     url(r'^ajax/ninecut_intint/$', get_ninecut_intint, name='ninecut_intint'),

@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'campingpro',
+    'camping_map',
     'django.contrib.gis',
     'leaflet',
     'djgeojson',

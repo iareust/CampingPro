@@ -1,7 +1,7 @@
 from django.contrib import admin
 from leaflet.admin import LeafletGeoAdmin
 
-from campingpro.models import BezirkPoly, SbbPoints, SeenPoly, FluesseLine, CampingPoints
+from camping_map.models import BezirkPoly, SbbPoints, SeenPoly, FluesseLine, CampingPoints
 
 
 class BezirkPolyAdmin(LeafletGeoAdmin):
