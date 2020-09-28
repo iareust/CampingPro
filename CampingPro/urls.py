@@ -13,16 +13,13 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
-from django.urls import path
 
 from django.conf.urls import url
-import django.contrib.auth.views
 
-from campingpro import *
 import campingpro.views
-from campingpro.views import ninecut_map, get_nearest_sbb_station, seen_dataset, camping_dataset, sbb_dataset, \
-    river_dataset, SBBStationData, camping_dataset2, borders_dataset, get_region_ninecut, get_ninecut_matrix, \
+from campingpro import *
+from campingpro.views import get_nearest_sbb_station, seen_dataset, camping_dataset, sbb_dataset, \
+    river_dataset, camping_dataset2, borders_dataset, get_region_ninecut, get_ninecut_matrix, \
     get_ninecut_intint, get_ninecut_intbound, get_ninecut_intext, get_ninecut_boundint, get_ninecut_boundbound, \
     get_ninecut_boundext, get_ninecut_extint, get_ninecut_extbound, get_ninecut_extext, sbb_water_dataset, routing
 

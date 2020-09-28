@@ -1,8 +1,5 @@
 from django.contrib import admin
-from django.contrib.gis.geos import Point
-from datetime import datetime
 from leaflet.admin import LeafletGeoAdmin
-import pandas as pd
 
 from campingpro.models import BezirkPoly, SbbPoints, SeenPoly, FluesseLine, CampingPoints
 

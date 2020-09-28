@@ -1,20 +1,11 @@
-from django.shortcuts import render
-from django.http import HttpRequest, HttpResponse, JsonResponse
-from django.template import RequestContext
-from datetime import datetime
 from django.core.serializers import serialize
 from django.db import connection
-
-from rest_framework.views import APIView
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import render
 from rest_framework.response import Response
-from django.contrib.gis.measure import Distance
+from rest_framework.views import APIView
 
 from campingpro.models import *
-from django.template.context import Context
-import pandas as pd
-import psycopg2
-
-from django.contrib.gis.geos import GEOSGeometry
 
 
 # Create your views here.
