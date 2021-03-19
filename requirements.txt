@@ -2,6 +2,6 @@ asgiref==3.2.10
 Django==3.0.10
 django-geojson==3.0.0
 django-leaflet==0.26.0
-djangorestframework==3.11.1
+djangorestframework==3.11.2
 psycopg2-binary==2.8.6
 python-dateutil==2.8.1
